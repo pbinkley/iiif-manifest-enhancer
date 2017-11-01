@@ -44,4 +44,6 @@ I think I can just use a single range structure (i.e., I won't attempt to enumer
 ]
 ```
 
+Manifest with working table of contents: http://iiif.durham.ac.uk/manifests/cat/hunter/DCL_Hunter_100.json
+
 Note: I'll have to replace uris above the canvas level with my own, so as not to conflict with Stanford's or to appear to attribute things to Stanford that are actually my work. I'll have to add metadata to make the relationship clear.
