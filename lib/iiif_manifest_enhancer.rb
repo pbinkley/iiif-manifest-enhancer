@@ -11,10 +11,10 @@ class IIIFManifest
 
   def initialize
     @input_manifest = JSON.parse(File.read(Dir.pwd + '/manifest/manifest.json'))
+    @output_manifest = @input_manifest.dup
   end
 
   def process
-    @output_manifest = @input_manifest.dup
     crawl(@output_manifest)
 
     canvases = []
@@ -22,8 +22,18 @@ class IIIFManifest
       canvases.push canvas['@id']
     end
 
-    rangecounter = 0
-    toc = [
+    toctext = []
+    # for now we'll fetch the toc images from local dir
+    # TODO if 'structures' already exists, add new one to it
+    ['p3', 'p4'].each do |page|
+      image = RTesseract.new('./pageimages/' + page + '.jpg')
+      image.to_s.each_line do |line|
+        line.strip!
+        next if line == ''
+        toctext.push line
+      end
+    end
+    @output_manifest['structures'] = [
       {
         "@id" => "https://www.wallandbinkley.com/enhancedmanifests/iiif/book1/range/r0",
         "@type" => "sc:Range",
@@ -32,31 +42,7 @@ class IIIFManifest
       }
     ]
 
-    # for now we'll fetch the toc images from local dir
-    ['p3', 'p4'].each do |page|
-      image = RTesseract.new('./pageimages/' + page + '.jpg')
-      image.to_s.each_line do |line|
-        line.strip!
-        next if line == ''
-        if line =~ /(.+?)[ .,'`\-‘’]*(\d+)[ .,'`\-‘’]*$/
-          title = $1 + ' (p.' + $2 + ')'
-          pagenum = $2
-          rangecounter += 1
-          range = {
-            "@id" => "https://www.wallandbinkley.com/enhancedmanifests/iiif/book1/range/r" + rangecounter.to_s,
-            within: "https://www.wallandbinkley.com/enhancedmanifests/iiif/book1/range/r0",
-            "@type" => "sc:Range",
-            label: title,
-            canvases: ["https://www.wallandbinkley.com/enhancedmanifests/zm715nq6104/iiif/canvas/zm715nq6104_" + pagenum]
-          }
-          toc.push range
-        else
-          puts "Line skipped: " + line
-        end
-      end
-    end
-
-@output_manifest['structures'] = toc   
+    @output_manifest['structures'].concat tocranges(toctext)
   end
 
   def output
@@ -66,8 +52,8 @@ class IIIFManifest
   end
 
   def crawl(o)
+    o = @output_manifest unless o
     return if o['@type'] == 'dctypes:image'
-    #binding.pry
     o['@id'] = o['@id'].sub(@@replace[0], @@replace[1]) if o['@id']
     o['on'] =  o['on'].sub(@@replace[0],  @@replace[1]) if o['on']
     o.keys.each do |key|
@@ -81,5 +67,32 @@ class IIIFManifest
         end
       end          
     end
+  end
+
+  def tocranges(toctext)
+    toc = []
+    rangecounter = 0
+    # assume toc entries have title, then row of dots with spaces, then page number
+    # OCR may mistake the dots for similar punctuation and may add random
+    # marks after the page number
+    toctext.each do |line|
+      if line =~ /(.+?)[ .,'`\-‘’]*(\d+)[ .,'`\-‘’]*$/
+        title = $1 + ' (p.' + $2 + ')'
+        pagenum = $2
+        rangecounter += 1
+        # make a single-canvas range associating this title with this page
+        range = {
+          "@id" => "https://www.wallandbinkley.com/enhancedmanifests/iiif/book1/range/r" + rangecounter.to_s,
+          within: "https://www.wallandbinkley.com/enhancedmanifests/iiif/book1/range/r0",
+          "@type" => "sc:Range",
+          label: title,
+          canvases: ["https://www.wallandbinkley.com/enhancedmanifests/zm715nq6104/iiif/canvas/zm715nq6104_" + pagenum]
+        }
+        toc.push range
+      else
+        puts 'Line skipped: ' + line
+      end
+    end
+    @output_manifest['structures'].concat toc
   end
 end
