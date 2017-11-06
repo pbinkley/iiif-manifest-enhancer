@@ -3,9 +3,10 @@
 require './lib/iiif_manifest_enhancer.rb'
 require 'optparse'
 
-options = {}
+options = { offset: 0 }
+
 OptionParser.new do |opts|
-  opts.banner = "Usage: run.rb [options]"
+  opts.banner = 'Usage: run.rb [options]'
 
   opts.on('-s', '--source val', String, 'Source manifest url') do |s|
     options[:source] = s
@@ -15,12 +16,11 @@ OptionParser.new do |opts|
     options[:toclist] = toclist.map(&:to_i)
   end
 
+  opts.on('-o', '--offset val', Integer, 'Offset for page numbers') do |o|
+    options[:offset] = o
+  end
 end.parse!
 
-p options
-p ARGV
-
-
-x = IIIFManifest.new(options[:source], options[:toclist])
+x = IIIFManifest.new(options[:source], options[:toclist], options[:offset])
 x.process
 x.output
