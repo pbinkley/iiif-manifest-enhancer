@@ -1,5 +1,6 @@
 require 'json/ld'
 require 'rtesseract'
+require 'open-uri'
 require 'pry'
 
 # Represents a IIIF Manifest parsed from a json-ld file
@@ -9,8 +10,10 @@ class IIIFManifest
 
   @@replace = ['https://purl.stanford.edu', 'https://www.wallandbinkley.com/enhancedmanifests']
 
-  def initialize
-    @input_manifest = JSON.parse(File.read(Dir.pwd + '/manifest/manifest.json'))
+  def initialize(source, toclist)
+    @input_manifest = JSON.parse(open(source).read)
+    @source = source
+    @toclist = toclist
     @output_manifest = @input_manifest.dup
   end
 
@@ -25,12 +28,17 @@ class IIIFManifest
     toctext = []
     # for now we'll fetch the toc images from local dir
     # TODO if 'structures' already exists, add new one to it
-    ['p3', 'p4'].each do |page|
-      image = RTesseract.new('./pageimages/' + page + '.jpg')
-      image.to_s.each_line do |line|
-        line.strip!
-        next if line == ''
-        toctext.push line
+    @toclist.each do |page|
+      #binding.pry
+      imageuri = @output_manifest['sequences'][0]['canvases'][page]['images'][0]['resource']['service']['@id'] + '/full/full/0/default.png'
+      puts 'Fetching ' + imageuri
+      open(imageuri) do |imageblob|
+        image = RTesseract.new(imageblob)
+        image.to_s.each_line do |line|
+          line.strip!
+          next if line == ''
+          toctext.push line
+        end
       end
     end
     @output_manifest['structures'] = [
