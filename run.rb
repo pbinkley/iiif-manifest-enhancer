@@ -3,7 +3,7 @@
 require './lib/iiif_manifest_enhancer.rb'
 require 'optparse'
 
-options = { offset: 0 }
+options = { unitlist: [] }
 
 OptionParser.new do |opts|
   opts.banner = 'Usage: run.rb [options]'
@@ -12,15 +12,31 @@ OptionParser.new do |opts|
     options[:source] = s
   end
 
-  opts.on('-t', '--toc x,y,z', Array, 'List of image numbers of TOC pages') do |toclist|
-    options[:toclist] = toclist.map(&:to_i)
+  opts.on('-t', '--toc x,y,z', String, 'List of image numbers of TOC pages') do |toclist|
+    unit = {}
+    # expect start|offset|tocpages
+    a, b, c = toclist.split('|')
+    unit[:start] = a != '' ? a.to_i : 1
+    unit[:offset] = b != '' ? b.to_i : 0
+    unit[:toclist] = c != '' ? c.split(',').map(&:to_i) : []
+    options[:unitlist] << unit
   end
 
-  opts.on('-o', '--offset val', Integer, 'Offset for page numbers') do |o|
-    options[:offset] = o
-  end
 end.parse!
 
-x = IIIFManifest.new(options[:source], options[:toclist], options[:offset])
+if options[:unitlist].count == 0
+  options[:unitlist] << { start: 1, offset: 0, toclist: [] }
+else
+  # add end to each unit; last unit can be nil
+  options[:unitlist].each_with_index do |unit, i|
+    if options[:unitlist].count == i + 1
+      unit[:end] = nil
+    else
+      unit[:end] = options[:unitlist][i + 1][:start] - 1
+    end
+  end
+end
+
+x = IIIFManifest.new(options[:source], options[:unitlist])
 x.process
 x.output
