@@ -11,11 +11,12 @@ class IIIFManifest
   REPLACE = { from: 'https://purl.stanford.edu', to: 'https://www.wallandbinkley.com/enhancedmanifests' }.freeze
   IDREGEX = /https\:\/\/purl.stanford.edu\/(.*)\/iiif\/manifest/.freeze
 
-  def initialize(source, unitlist)
+  def initialize(source, unitlist, psm)
     @input_manifest = JSON.parse(open(source).read)
     @original_id = get_original_id(@input_manifest['@id'])
     @source = source
     @unitlist = unitlist
+    @psm = psm
     @output_manifest = @input_manifest.dup
     @output_manifests = []
   end
@@ -71,7 +72,7 @@ class IIIFManifest
         imageuri = output_manifest['sequences'][0]['canvases'][page - unitlist[:start]]['images'][0]['resource']['service']['@id'] + '/full/full/0/default.png'
         puts 'Fetching ' + imageuri
         open(imageuri) do |imageblob|
-          image = RTesseract.new(imageblob, psm: 6)
+          image = RTesseract.new(imageblob, psm: @psm)
           image.to_s.each_line do |line|
             line.strip!
             next if line == ''
@@ -129,7 +130,7 @@ class IIIFManifest
     # OCR may mistake the dots for similar punctuation and may add random
     # marks after the page number
     toctext.each do |line|
-      if line =~ /(.+?)[ .,'`\-‘’]*(\d+)[ .,'`\-‘’]*$/
+      if line =~ /(.+?)[ .,'`\-_:;‘’]*(\d+)[ .,'`\-‘’]*$/
         title = $1 + ' (p.' + $2 + ')'
         pagenum = $2
         rangecounter += 1

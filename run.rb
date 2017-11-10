@@ -3,7 +3,7 @@
 require './lib/iiif_manifest_enhancer.rb'
 require 'optparse'
 
-options = { unitlist: [] }
+options = { unitlist: [], psm: 6 }
 
 OptionParser.new do |opts|
   opts.banner = 'Usage: run.rb [options]'
@@ -22,6 +22,9 @@ OptionParser.new do |opts|
     options[:unitlist] << unit
   end
 
+  opts.on('-p', '--psm val', Integer, 'Tesseract PSM (default: 6)') do |psm|
+    options[:psm] = psm
+  end
 end.parse!
 
 if options[:unitlist].count == 0
@@ -37,6 +40,6 @@ else
   end
 end
 
-x = IIIFManifest.new(options[:source], options[:unitlist])
+x = IIIFManifest.new(options[:source], options[:unitlist], options[:psm])
 x.process
 x.output
