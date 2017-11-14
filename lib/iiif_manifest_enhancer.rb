@@ -6,7 +6,7 @@ require 'pry'
 # Represents a IIIF Manifest parsed from a json-ld file
 class IIIFManifest
   attr_reader :input_manifest
-  attr_reader :output_manifest
+  attr_reader :output_manifests
 
   REPLACE = { from: 'https://purl.stanford.edu', to: 'https://www.wallandbinkley.com/enhancedmanifests' }.freeze
   IDREGEX = /https\:\/\/purl.stanford.edu\/(.*)\/iiif\/manifest/.freeze
@@ -34,6 +34,7 @@ class IIIFManifest
 
     @unitlist.each_with_index do |unitlist, i|
       unitlist[:end] = @end if unitlist[:end].nil?
+      unitlist[:id] = @original_id + '_' + (i + 1).to_s
       # TODO adjust tocpages to new canvases indexes
       # i.e. subtract start
       unitlist[:toclist].each do |tocpage|
@@ -42,6 +43,8 @@ class IIIFManifest
       # binding.pry
 
       output_manifest = Marshal.load(Marshal.dump(@output_manifest))
+      output_manifest['label'] = unitlist[:title] if unitlist[:title]
+
       # remove canvases that aren't part of this unit
       # i.e. not between start and end
       unitcanvases = output_manifest['sequences'][0]['canvases'].slice(unitlist[:start] - 1, unitlist[:end] - unitlist[:start] + 1)
@@ -82,14 +85,14 @@ class IIIFManifest
       end
       output_manifest['structures'] = [
         {
-          '@id' => REPLACE[:to] + '/iiif/book1/range/r0',
+          '@id' => REPLACE[:to] + '/iiif/' + unitlist[:id] + '/range/r0',
           '@type' => 'sc:Range',
           label: 'Table of Contents',
           canvases: canvases
         }
       ]
 
-      output_manifest['structures'].concat tocranges(toctext, unitlist[:offset], unitlist[:start])
+      output_manifest['structures'].concat tocranges(toctext, unitlist)
       # binding.pry
       @output_manifests << output_manifest
     end
@@ -123,24 +126,24 @@ class IIIFManifest
     end
   end
 
-  def tocranges(toctext, offset, start)
+  def tocranges(toctext, unitlist)
     toc = []
     rangecounter = 0
     # assume toc entries have title, then row of dots with spaces, then page number
     # OCR may mistake the dots for similar punctuation and may add random
     # marks after the page number
     toctext.each do |line|
-      if line =~ /(.+?)[ .,'`\-_:;‘’]*(\d+)[ .,'`\-‘’]*$/
+      if line =~ /(.+?)[ .,'`\-_:;‘’]*(\d+)[ .,'`\-_:;‘’]*$/
         title = $1 + ' (p.' + $2 + ')'
         pagenum = $2
         rangecounter += 1
         # make a single-canvas range associating this title with this page
         range = {
-          '@id' => REPLACE[:to] + '/iiif/book1/range/r' + rangecounter.to_s,
-          within: REPLACE[:to] + '/iiif/book1/range/r0',
+          '@id' => REPLACE[:to] + '/iiif/' + unitlist[:id] + '/range/r' + rangecounter.to_s,
+          within: REPLACE[:to] + '/iiif/' + unitlist[:id] + '/range/r0',
           '@type' => 'sc:Range',
           label: title,
-          canvases: [REPLACE[:to] + '/' + @original_id + '/iiif/canvas/' + @original_id + '_' + (pagenum.to_i + offset + start - 1).to_s]
+          canvases: [REPLACE[:to] + '/' + @original_id + '/iiif/canvas/' + @original_id + '_' + (pagenum.to_i + unitlist[:offset] + unitlist[:start] - 1).to_s]
         }
         toc.push range
       else

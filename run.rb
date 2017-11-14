@@ -12,17 +12,18 @@ OptionParser.new do |opts|
     options[:source] = s
   end
 
-  opts.on('-t', '--toc x,y,z', String, 'List of image numbers of TOC pages') do |toclist|
+  opts.on('-u', '--unit <start>|<offset>|<toclist>|<title>', String, 'Settings for an output manifest') do |unitopts|
     unit = {}
-    # expect start|offset|tocpages
-    a, b, c = toclist.split('|')
+    # expect start|offset|tocpages|title
+    a, b, c, d = unitopts.split('|')
     unit[:start] = a != '' ? a.to_i : 1
     unit[:offset] = b != '' ? b.to_i : 0
     unit[:toclist] = c != '' ? c.split(',').map(&:to_i) : []
+    unit[:title] = d
     options[:unitlist] << unit
   end
 
-  opts.on('-p', '--psm val', Integer, 'Tesseract PSM (default: 6)') do |psm|
+  opts.on('-p', '--psm val', Integer, 'Tesseract PSM (default : 6)') do |psm|
     options[:psm] = psm
   end
 end.parse!
